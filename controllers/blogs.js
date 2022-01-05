@@ -1,6 +1,7 @@
 const blogsRouter = require("express").Router();
 // const User = require("../models/user");
 const Blog = require("../models/blog");
+const Comment = require("../models/comment");
 
 blogsRouter.get("/", async (request, response) => {
   const blogs = await Blog.find({}).populate("user", { username: 1, name: 1 });
@@ -21,7 +22,25 @@ blogsRouter.post("/", async (request, response) => {
   const savedBlog = await blog.save();
   user.blogs = user.blogs.concat(savedBlog._id)
   await user.save()
+  //This leads to a minor frontend bug where a newly added blog can't be instantaneously deleted because 
+  // its user object isn't populated(using Mongoose) and returned by the backend as a response. 
+  // This means the frontend can't immediately check if user is allowed to delete the blog until page is refreshed.
+  // To be fixed in a future release.
   response.status(201).json(savedBlog);
+});
+
+blogsRouter.get("/:id/comments", async(request, response) => {
+  const blogComments = await Comment.find({blog: request.params.id});
+  response.json(blogComments);
+});
+
+blogsRouter.post("/:id/comments", async(request, response) => {
+  const comment = new Comment({
+    content: request.body.content,
+    blog: request.params.id
+  });
+  const savedComment = await comment.save();
+  response.status(201).json(savedComment);
 });
 
 blogsRouter.delete("/:id", async (request, response) => {
